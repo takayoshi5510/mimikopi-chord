@@ -63,6 +63,23 @@ button:focus-visible,.btn:focus-visible,input:focus-visible,select:focus-visible
 @media (max-width:420px){.bar .c{font-size:15px}.bar .c.two{font-size:12.5px}}
 .player{position:relative;width:100%;max-width:560px;aspect-ratio:16/9;background:#000;border-radius:8px;overflow:hidden}
 .player iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.editor{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px;border:1px solid var(--accent);border-radius:8px;background:var(--bg)}
+.editor select{width:auto;padding:4px 8px}
+.bar button.c{all:unset;cursor:pointer;font-weight:700;font-size:17px;border-radius:4px;padding:0 3px}
+.bar button.c:hover,.bar button.c:focus-visible{background:var(--bg);outline:2px solid var(--hot)}
+.bar button.c.two{font-size:14px}
+.bar button.c.nc{color:var(--muted);font-size:13px;font-weight:500}
+.bar.sel{background:var(--bg)}
+textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;box-sizing:border-box;min-width:0;resize:vertical}
+.sync{display:grid;gap:6px;padding:12px;border:1px solid var(--hot);border-radius:8px}
+.syncCur{font-size:22px;font-weight:700}
+button.tap{font-size:17px;padding:12px 18px}
+.cpv{display:grid;gap:10px;min-width:0}
+.lyl{display:flex;flex-wrap:wrap;align-items:flex-end;row-gap:4px}
+.lyl .sg{display:inline-flex;flex-direction:column}
+.lyl .ch{font-family:var(--f-chord);font-weight:700;color:var(--accent);font-size:14px;min-height:1.3em;padding-right:6px;white-space:nowrap}
+.lyl .tx{font-size:17px;white-space:pre}
+code{font-family:var(--f-chord);font-size:12.5px;background:var(--bg);padding:0 4px;border-radius:4px}
 .tl{font-family:var(--f-chord);font-size:13px;display:flex;flex-wrap:wrap;gap:4px 14px;font-variant-numeric:tabular-nums}
 .tl span i{font-style:normal;color:var(--muted);margin-right:4px}
 details summary{cursor:pointer;font-size:13px;color:var(--muted)}
@@ -142,7 +159,15 @@ textarea.copy{position:absolute;left:-9999px}
       <span class="hint" id="capoHint"></span>
     </div>
     <div style="overflow-x:auto"><div class="sheet" id="sheet"></div></div>
-    <p class="hint">1 マス＝1 小節（4 拍の目安）。2 つ並ぶときは前半・後半。テンポが揺れる曲は、下の「時間順」も見てください。</p>
+    <div class="editor" id="ed" hidden>
+      <b id="edWhere">小節 1</b>
+      <select id="edRoot" aria-label="根音"></select>
+      <select id="edQual" aria-label="種類"></select>
+      <button id="edApply" class="primary">直す</button>
+      <button id="edBar">この小節すべて</button>
+      <button id="edCancel">やめる</button>
+    </div>
+    <p class="hint"><b>コード名を押すと直せます</b>（例: Em と出たが本当は G → 押して G を選ぶ）。1 マス＝1 小節、2 つ並ぶときは前半・後半。</p>
     <details>
       <summary>時間順のコード一覧</summary>
       <div class="tl" id="tl" style="margin-top:8px"></div>
@@ -152,7 +177,36 @@ textarea.copy{position:absolute;left:-9999px}
       <button id="btnSave">.txt で保存</button>
       <span class="hint" id="copyMsg"></span>
     </div>
-    <p class="hint">聴き取りは目安です。9th や分数コードは近い基本形（例: C9→C、C/E→C）になります。仕上げは耳で確認してください。</p>
+    <p class="hint">自動の聴き取りは下書きです（歌やドラムが強い曲ほどずれます）。9th や分数コードは近い基本形になります（例: C9→C、C/E→C）。</p>
+  </section>
+
+  <section class="card" aria-labelledby="h-lyr">
+    <h2 id="h-lyr"><span class="no">3</span>歌詞つきコード譜</h2>
+    <label for="lyrics">歌詞（1 行ずつ貼り付け）
+      <textarea id="lyrics" rows="6" placeholder="例:&#10;あさの ひかりが まどを てらす&#10;きょうも みんなで うたおう"></textarea>
+    </label>
+    <p class="hint">歌詞はお手元の歌集・楽譜などから貼ってください（アプリが歌詞を取ってくることはありません）。</p>
+    <div class="row">
+      <button id="btnSync" class="primary">♪ 動画に合わせて行を区切る</button>
+      <button id="btnEven">均等に割り振る（おおまか）</button>
+    </div>
+    <div class="sync" id="sync" hidden>
+      <div class="hint">いま歌っている行</div>
+      <div class="syncCur" id="syncCur">–</div>
+      <div class="hint">次: <span id="syncNext"></span></div>
+      <div class="row">
+        <button id="btnTap" class="primary tap">この行が始まった！（スペースキー）</button>
+        <button id="btnBack">1 行戻る</button>
+        <button id="btnSyncStop">やめる</button>
+      </div>
+    </div>
+    <p class="hint">「区切る」は、動画が流れるので<b>各行を歌い出した瞬間に</b>ボタンかスペースキーを押します。リンクから作ったコード譜で使えます。</p>
+    <div class="cpv" id="cpView"><p class="hint">歌詞を貼って、上のどちらかのボタンを押すと、ここに歌詞の上にコードが並びます。</p></div>
+    <details id="cpBox">
+      <summary>位置を手で直す（[C] の形で書きかえ）</summary>
+      <textarea id="cp" rows="8" style="margin-top:8px;width:100%;box-sizing:border-box;font-family:var(--f-chord)"></textarea>
+      <p class="hint">例: <code>[C]あさの [G]ひかりが</code> → コードの位置は [ ] を動かすだけ。書きかえると上の表示にすぐ反映します。</p>
+    </details>
   </section>
 
   <section class="card" aria-labelledby="h-hist">
@@ -165,7 +219,8 @@ textarea.copy{position:absolute;left:-9999px}
 const Core = (() => {
   const SH = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
   const FL = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
-  const QUALS = [['',[0,4,7],1],['m',[0,3,7],1],['7',[0,4,7,10],.95],['m7',[0,3,7,10],.95],['M7',[0,4,7,11],.94],['sus4',[0,5,7],.92],['dim',[0,3,6],.9]];
+  const MIX = ['C','C#','D','Eb','E','F','F#','G','G#','A','Bb','B'];
+  const QUALS = [['',[0,4,7],1],['m',[0,3,7],1],['7',[0,4,7,10],.95],['m7',[0,3,7,10],.95],['M7',[0,4,7,11],.94],['sus4',[0,5,7],.92],['dim',[0,3,6],.9],['aug',[0,4,8],.88]];
   const HW = [1,.55,.3,.17,.09,.05], HPC = [0,0,7,0,4,7];
   const norm = v => { let s = 0; for (const x of v) s += x*x; s = Math.sqrt(s) || 1; return v.map(x => x/s); };
   const CHORDS = [];
@@ -193,11 +248,11 @@ const Core = (() => {
     };
   }
 
-  // 1フレーム（N サンプル）→ クロマ・低音クロマ・音量・立ち上がり
+  // 1フレーム → 1/3半音きざみのクロマ（高域・低域）、音量、立ち上がり
   function makeAnalyzer(sr, N) {
     const fft = makeFFT(N), win = new Float64Array(N), re = new Float64Array(N), im = new Float64Array(N);
     for (let i = 0; i < N; i++) win[i] = 0.5 - 0.5*Math.cos(2*Math.PI*i/(N-1));
-    const kLo = Math.max(2, Math.floor(60*N/sr)), kHi = Math.ceil(2300*N/sr), fHi = Math.ceil(4000*N/sr);
+    const kLo = Math.max(2, Math.floor(60*N/sr)), kHi = Math.ceil(2000*N/sr), fHi = Math.ceil(4000*N/sr);
     const mag = new Float64Array(fHi + 2); let prev = null;
     return frame => {
       for (let i = 0; i < N; i++) { re[i] = frame[i]*win[i]; im[i] = 0; }
@@ -210,28 +265,36 @@ const Core = (() => {
         if (k >= kLo && k <= kHi) { if (m > mx) mx = m; en += m*m; }
       }
       prev = L;
-      const c = new Array(12).fill(0), b = new Array(12).fill(0), thr = mx*0.015;
+      const c = new Array(36).fill(0), b = new Array(36).fill(0), thr = mx*0.015;
       for (let k = kLo + 1; k < kHi; k++) {
         const m = mag[k];
         if (m <= thr || m <= mag[k-1] || m < mag[k+1]) continue;
         const a0 = Math.log(mag[k-1] + 1e-12), a1 = Math.log(m), a2 = Math.log(mag[k+1] + 1e-12);
         const den = a0 - 2*a1 + a2, p = den ? 0.5*(a0 - a2)/den : 0;
-        const f = (k + p)*sr/N, midi = 69 + 12*Math.log2(f/440), mr = Math.round(midi), dev = Math.abs(midi - mr);
-        if (dev > 0.4) continue;
-        const w = Math.sqrt(m)*(1 - dev*1.6), pc = ((mr % 12) + 12) % 12;
-        if (mr >= 45 && mr <= 96) c[pc] += w;
-        if (mr >= 33 && mr <= 55) b[pc] += w;
+        const f = (k + p)*sr/N, midi = 69 + 12*Math.log2(f/440), q = Math.round(midi*3), bin = ((q % 36) + 36) % 36;
+        const w = Math.sqrt(m), mr = midi;
+        if (mr >= 44.5 && mr <= 92) c[bin] += w*(mr > 84 ? 0.6 : 1);
+        if (mr >= 32.5 && mr <= 55.5) b[bin] += w;
       }
       return { c, b, e: en/(N*N), f: flux };
     };
   }
 
+  // 36 → 12 にたたむ（o = チューニングのずれ 0, 1, 2 → 0, +1/3, -1/3 半音）
+  function fold(v, o) {
+    const r = new Array(12).fill(0);
+    for (let p = 0; p < 12; p++) { const k = 3*p + (o === 2 ? -1 : o); r[p] = v[(k + 36) % 36] + 0.5*(v[(k + 35) % 36] + v[(k + 37) % 36]); }
+    return r;
+  }
+
   function scoreChord(cn, bass, bmax, ch) {
     let d = 0; for (let i = 0; i < 12; i++) d += cn[i]*ch.t[i];
-    return d*ch.prior + (bmax > 0 ? 0.08*bass[ch.root]/bmax : 0);
+    let bb = 0;
+    if (bmax > 0) { const br = bass[ch.root]/bmax; bb = 0.12*br; let other = 0; for (const iv of ch.iv) other = Math.max(other, bass[(ch.root + iv) % 12]/bmax); bb += 0.03*other; }
+    return d*ch.prior + bb;
   }
-  function best(c, b) {
-    const cn = norm(c), bmax = Math.max(...b); let bi = -1, bs = -1;
+  function best(c36, b36) {
+    const c = fold(c36, 0), b = fold(b36, 0), cn = norm(c), bmax = Math.max(...b); let bi = -1, bs = -1;
     CHORDS.forEach((ch, i) => { const s = scoreChord(cn, b, bmax, ch); if (s > bs) { bs = s; bi = i; } });
     return bi;
   }
@@ -251,28 +314,49 @@ const Core = (() => {
     }
     return bk;
   }
+  // キーに合うコードを少し優先（長調の I ii iii IV V vi と、よく使う借用・セカンダリー）
+  function keyBonus(key) {
+    const R = key.minor ? (key.root + 3) % 12 : key.root, bonus = new Array(CHORDS.length).fill(-0.02);
+    const fav = [[0,''],[2,'m'],[4,'m'],[5,''],[7,''],[9,'m'],[0,'M7'],[2,'m7'],[4,'m7'],[5,'M7'],[7,'7'],[9,'m7'],[7,'sus4'],[11,'dim']];
+    const ok = [[4,''],[4,'7'],[2,''],[2,'7'],[9,''],[9,'7'],[0,'7'],[10,''],[8,''],[5,'m'],[3,''],[11,'m7'],[0,'sus4'],[2,'sus4'],[9,'sus4'],[4,'sus4']];
+    CHORDS.forEach((ch, i) => {
+      const d = (ch.root - R + 12) % 12;
+      if (fav.some(([x, s]) => x === d && s === ch.suf)) bonus[i] = 0.035;
+      else if (ok.some(([x, s]) => x === d && s === ch.suf)) bonus[i] = 0.01;
+    });
+    return bonus;
+  }
 
-  // 録り終えたフレーム列 → コード進行・キー・テンポ・小節
-  function analyze(frames, hop) {
-    const T = frames.length; if (T < 10) return null;
-    const es = frames.map(f => f.e).sort((a, b) => a - b), ref = es[Math.floor(T*0.9)] || 1e-12;
-    const R = Math.max(2, Math.round(0.3/hop));
-    const pc = Array.from({ length: 24 }, () => new Float64Array(T + 1)), pe = new Float64Array(T + 1);
-    for (let t = 0; t < T; t++) { for (let i = 0; i < 12; i++) { pc[i][t+1] = pc[i][t] + frames[t].c[i]; pc[12+i][t+1] = pc[12+i][t] + frames[t].b[i]; } pe[t+1] = pe[t] + frames[t].e; }
-    const S = CHORDS.length, SN = S + 1, emit = new Float32Array(T*SN), keySum = new Array(12).fill(0);
-    for (let t = 0; t < T; t++) {
-      const a = Math.max(0, t - R), z = Math.min(T, t + R + 1);
-      const c = [], b = []; for (let i = 0; i < 12; i++) { c.push(pc[i][z] - pc[i][a]); b.push(pc[12+i][z] - pc[12+i][a]); }
-      const rel = (pe[z] - pe[a])/(z - a)/ref, cn = norm(c), bmax = Math.max(...b);
-      const quiet = rel < 0.02 || c.every(x => x === 0);
-      for (let s = 0; s < S; s++) emit[t*SN + s] = scoreChord(cn, b, bmax, CHORDS[s])*(quiet ? 0.5 : 1);
-      emit[t*SN + S] = quiet ? 1.2 : rel < 0.06 ? 0.55 : 0.1;
-      if (!quiet) { const w = Math.sqrt(Math.min(rel, 4)); for (let i = 0; i < 12; i++) keySum[i] += cn[i]*w; }
+  // テンポ・拍の位置（フレーム番号）
+  function trackBeats(frames, hop) {
+    const T = frames.length, fl = frames.map(f => f.f), on = new Float64Array(T), W = 8;
+    for (let t = 0; t < T; t++) { let m = 0, n = 0; for (let j = Math.max(0, t-W); j <= Math.min(T-1, t+W); j++) { m += fl[j]; n++; } on[t] = Math.max(0, fl[t] - m/n); }
+    const lagMin = Math.max(2, Math.floor(60/190/hop)), lagMax = Math.min(T - 4, Math.ceil(60/58/hop));
+    const ac = new Float64Array(lagMax + 2); let bl = -1, bsc = 0;
+    for (let L = lagMin; L <= lagMax + 1; L++) { let s2 = 0; for (let t = 0; t + L < T; t++) s2 += on[t]*on[t+L]; ac[L] = s2/(T - L); }
+    for (let L = lagMin + 1; L <= lagMax; L++) {
+      const b2 = 60/(L*hop), w = Math.exp(-0.5*(Math.log2(b2/115)/0.8)**2), sc = ac[L]*w;
+      if (sc > bsc) { bsc = sc; bl = L; }
     }
-    // Viterbi（切り替えに罰則）
-    const lam = 0.18, back = new Int16Array(T*SN); let dp = new Float64Array(SN), nd = new Float64Array(SN);
+    if (bl < 0 || T*hop < 8) { const P = 0.5/hop, beats = []; for (let x = 0; x < T; x += P) beats.push(x); return { beats, P, bpm: 0 }; }
+    const den = ac[bl-1] - 2*ac[bl] + ac[bl+1], P0 = bl + (den ? 0.5*(ac[bl-1] - ac[bl+1])/den : 0);
+    let bph = 0, bpv = -1;
+    for (let ph = 0; ph < P0; ph += 0.25) { let s2 = 0; for (let x = ph; x < T; x += P0) s2 += on[Math.round(x)] || 0; if (s2 > bpv) { bpv = s2; bph = ph; } }
+    // テンポの小さな揺れに追従（各拍を ±15% の範囲で立ち上がりに寄せる）
+    const beats = [bph]; let x = bph;
+    while (x + P0 < T) {
+      let bx = x + P0, bv = -1; const r = Math.max(1, Math.round(P0*0.15));
+      for (let d = -r; d <= r; d++) { const y = Math.round(x + P0 + d); if (y >= T) break; const v = (on[y] || 0)*Math.exp(-0.5*(d/r)**2); if (v > bv) { bv = v; bx = y; } }
+      x = bv > 0 ? 0.7*(x + P0) + 0.3*bx : x + P0; beats.push(x);
+    }
+    return { beats, P: P0, bpm: 60/(P0*hop) };
+  }
+
+  function viterbi(emit, nB, SN, lamOf) {
+    const back = new Int16Array(nB*SN); let dp = new Float64Array(SN), nd = new Float64Array(SN);
     for (let s = 0; s < SN; s++) dp[s] = emit[s];
-    for (let t = 1; t < T; t++) {
+    for (let t = 1; t < nB; t++) {
+      const lam = lamOf(t);
       let bi = 0; for (let s = 1; s < SN; s++) if (dp[s] > dp[bi]) bi = s;
       const bv = dp[bi] - lam;
       for (let s = 0; s < SN; s++) {
@@ -282,73 +366,116 @@ const Core = (() => {
       [dp, nd] = [nd, dp];
     }
     let s = 0; for (let i = 1; i < SN; i++) if (dp[i] > dp[s]) s = i;
-    const path = new Int16Array(T);
-    for (let t = T - 1; t >= 0; t--) { path[t] = s === S ? -1 : s; s = back[t*SN + s]; }
-    // 区間化＋短すぎる区間の吸収
-    let segs = [];
-    for (let t = 0; t < T; t++) { const l = segs[segs.length-1]; if (l && l.ci === path[t]) l.n++; else segs.push({ ci: path[t], a: t, n: 1 }); }
-    const minN = Math.round(0.4/hop); let changed = true;
-    while (changed && segs.length > 1) {
-      changed = false;
-      let mi = -1; segs.forEach((g, i) => { if (g.n < minN && (mi < 0 || g.n < segs[mi].n)) mi = i; });
-      if (mi >= 0) {
-        const L = segs[mi-1], Rg = segs[mi+1], tgt = !L ? Rg : !Rg ? L : (L.n >= Rg.n ? L : Rg);
-        if (tgt === L) L.n += segs[mi].n; else { Rg.a = segs[mi].a; Rg.n += segs[mi].n; }
-        segs.splice(mi, 1);
-        const m = []; for (const g of segs) { const l = m[m.length-1]; if (l && l.ci === g.ci) l.n += g.n; else m.push(g); }
-        segs = m; changed = true;
-      }
+    const path = new Int16Array(nB);
+    for (let t = nB - 1; t >= 0; t--) { path[t] = s === SN - 1 ? -1 : s; s = back[t*SN + s]; }
+    return path;
+  }
+  function barOffset(bc) {
+    let off = 0, ov = -1;
+    for (let o = 0; o < 4; o++) { let v = 0; for (let i = 1; i < bc.length; i++) if (bc[i] !== bc[i-1]) { const m = ((i - o) % 4 + 4) % 4; v += m === 0 ? 1 : m === 2 ? 0.35 : 0; } if (v > ov) { ov = v; off = o; } }
+    return off;
+  }
+
+  // 録り終えたフレーム列 → 拍ごとのコード・キー・テンポ
+  function analyze(frames, hop) {
+    const T = frames.length; if (T < 10) return null;
+    const es = frames.map(f => f.e).sort((a, b) => a - b), ref = es[Math.floor(T*0.9)] || 1e-12;
+    const h3 = [0, 0, 0]; frames.forEach(f => f.c.forEach((v, i) => h3[i % 3] += v));
+    const tun = h3.indexOf(Math.max(...h3));
+    const fc = frames.map(f => fold(f.c, tun)), fb = frames.map(f => fold(f.b, tun));
+    const { beats, P, bpm } = trackBeats(frames, hop);
+    const nB = beats.length, S = CHORDS.length, SN = S + 1;
+    const bC = [], bB = [], bE = [];
+    for (let i = 0; i < nB; i++) {
+      const a = Math.max(0, Math.floor(beats[i])), z = Math.min(T, Math.max(a + 1, Math.floor(i + 1 < nB ? beats[i+1] : beats[i] + P)));
+      const c = new Array(12).fill(0), b = new Array(12).fill(0); let e = 0;
+      for (let t = a; t < z; t++) { for (let k = 0; k < 12; k++) { c[k] += fc[t][k]; b[k] += fb[t][k]; } e += frames[t].e; }
+      bC.push(c); bB.push(b); bE.push(e/(z - a)/ref);
     }
-    const lab = new Int16Array(T); for (const g of segs) for (let t = g.a; t < g.a + g.n; t++) lab[t] = g.ci;
+    const keySum = new Array(12).fill(0);
+    bC.forEach((c, i) => { if (bE[i] >= 0.02) { const cn = norm(c), w = Math.sqrt(Math.min(bE[i], 4)); for (let k = 0; k < 12; k++) keySum[k] += cn[k]*w; } });
+    const key = estimateKey(keySum), kb = keyBonus(key);
+    const emit = new Float32Array(nB*SN);
+    for (let i = 0; i < nB; i++) {
+      // 前後の拍を少し混ぜて安定させる
+      const c = bC[i].slice(), b = bB[i].slice();
+      for (const j of [i - 1, i + 1]) if (j >= 0 && j < nB) for (let k = 0; k < 12; k++) { c[k] += 0.25*bC[j][k]; b[k] += 0.25*bB[j][k]; }
+      const cn = norm(c), bmax = Math.max(...b), quiet = bE[i] < 0.02 || c.every(x => x === 0);
+      for (let s = 0; s < S; s++) emit[i*SN + s] = (scoreChord(cn, b, bmax, CHORDS[s]) + kb[s])*(quiet ? 0.5 : 1);
+      emit[i*SN + S] = quiet ? 1.2 : bE[i] < 0.06 ? 0.55 : 0.1;
+    }
+    let bc = viterbi(emit, nB, SN, () => 0.12);
+    const off = barOffset(bc);
+    bc = viterbi(emit, nB, SN, t => { const m = ((t - off) % 4 + 4) % 4; return m === 0 ? 0.07 : m === 2 ? 0.11 : 0.17; });
     const t0 = frames[0].t;
-    const outSegs = segs.map(g => ({ s: +(t0 + g.a*hop).toFixed(2), e: +(t0 + (g.a + g.n)*hop).toFixed(2), ci: g.ci }));
-    const key = estimateKey(keySum);
-    // テンポ・拍
-    let bpm = 0, bars = null;
-    const fl = frames.map(f => f.f), on = new Float64Array(T), W = 8;
-    for (let t = 0; t < T; t++) { let m = 0, n = 0; for (let j = Math.max(0, t-W); j <= Math.min(T-1, t+W); j++) { m += fl[j]; n++; } on[t] = Math.max(0, fl[t] - m/n); }
-    const lagMin = Math.max(2, Math.floor(60/190/hop)), lagMax = Math.min(T - 4, Math.ceil(60/58/hop));
-    const ac = new Float64Array(lagMax + 2); let bl = -1, bsc = 0;
-    for (let L = lagMin; L <= lagMax + 1; L++) { let s2 = 0; for (let t = 0; t + L < T; t++) s2 += on[t]*on[t+L]; ac[L] = s2/(T - L); }
-    for (let L = lagMin + 1; L <= lagMax; L++) {
-      const b2 = 60/(L*hop), w = Math.exp(-0.5*(Math.log2(b2/115)/0.8)**2), sc = ac[L]*w;
-      if (sc > bsc) { bsc = sc; bl = L; }
-    }
-    const dur = T*hop;
-    if (bl > 0 && dur > 8) {
-      const den = ac[bl-1] - 2*ac[bl] + ac[bl+1], P = bl + (den ? 0.5*(ac[bl-1] - ac[bl+1])/den : 0);
-      bpm = 60/(P*hop);
-      let bph = 0, bpv = -1;
-      for (let ph = 0; ph < P; ph += 0.25) { let s2 = 0; for (let x = ph; x < T; x += P) s2 += on[Math.round(x)] || 0; if (s2 > bpv) { bpv = s2; bph = ph; } }
-      const beats = []; for (let x = bph; x + P <= T + 0.01; x += P) beats.push(x);
-      const bc = beats.map(x => {
-        const cnt = new Map(); for (let t = Math.floor(x); t < Math.min(T, Math.floor(x + P)); t++) cnt.set(lab[t], (cnt.get(lab[t]) || 0) + 1);
-        let bk = -1, bv2 = -1; for (const [k, v] of cnt) if (v > bv2) { bv2 = v; bk = k; } return bk;
-      });
-      let off = 0, ov = -1;
-      for (let o = 0; o < 4; o++) { let v = 0; for (let i = 1; i < bc.length; i++) if (bc[i] !== bc[i-1]) { const m = ((i - o) % 4 + 4) % 4; v += m === 0 ? 1 : m === 2 ? 0.35 : 0; } if (v > ov) { ov = v; off = o; } }
-      bars = [];
-      if (off > 0) bars.push(bc.slice(0, off));
-      for (let i = off; i < bc.length; i += 4) bars.push(bc.slice(i, i + 4));
-      const same = (a, b) => a === b || (a >= 0 && b >= 0 && CHORDS[a].root === CHORDS[b].root);
-      bars = bars.map(br => br.filter((x, i) => i === 0 || !same(x, br[i-1])));
-      while (bars.length && bars[0].every(x => x < 0)) bars.shift();
-      while (bars.length && bars[bars.length-1].every(x => x < 0)) bars.pop();
-      bars = bars.map(br => br.length > 1 ? br.filter(x => x >= 0) : br).map(br => br.length ? br : [-1]);
-    }
-    return { segs: outSegs, key, bpm: Math.round(bpm), bars, dur: +dur.toFixed(1) };
+    return {
+      v: 2, beats: beats.map(x => +(t0 + x*hop).toFixed(2)), bc: Array.from(bc), off: barOffset(bc),
+      key, bpm: bpm ? Math.round(bpm) : 0, dur: +(T*hop).toFixed(1), tuning: tun
+    };
+  }
+
+  // 拍ごとのコード → 区間・小節
+  function segsOf(r) {
+    const out = [];
+    r.bc.forEach((ci, i) => { const l = out[out.length - 1]; if (l && l.ci === ci) l.e = r.beats[i+1] ?? l.e; else out.push({ s: r.beats[i], e: r.beats[i+1] ?? r.beats[i], ci, i }); });
+    return out;
+  }
+  // 小節: [{ i: 先頭の拍番号, items: [{ ci, a: 拍番号, n: 拍数 }] }]
+  function barsOf(r) {
+    const bars = [], n = r.bc.length, off = r.off;
+    const push = (a, z) => { const items = []; for (let i = a; i < z; i++) { const l = items[items.length - 1]; if (l && l.ci === r.bc[i]) l.n++; else items.push({ ci: r.bc[i], a: i, n: 1 }); } bars.push({ i: a, items }); };
+    if (off > 0) push(0, off);
+    for (let i = off; i < n; i += 4) push(i, Math.min(n, i + 4));
+    while (bars.length && bars[0].items.every(x => x.ci < 0)) bars.shift();
+    while (bars.length && bars[bars.length-1].items.every(x => x.ci < 0)) bars.pop();
+    return bars;
+  }
+  function chordAt(r, t) {
+    let lo = 0, hi = r.beats.length - 1;
+    if (t < r.beats[0]) return r.bc[0];
+    while (lo < hi) { const m = (lo + hi + 1) >> 1; if (r.beats[m] <= t) lo = m; else hi = m - 1; }
+    return r.bc[lo];
+  }
+
+  // 歌詞の各行の開始時刻 → ChordPro 形式（[C]歌詞[G]歌詞）
+  function alignLyrics(r, lines, starts, shift, flats) {
+    const out = [];
+    const lastEnd = r.beats[r.beats.length - 1];
+    lines.forEach((line, li) => {
+      const s = starts[li];
+      if (s == null || !line.trim()) { out.push(line); return; }
+      let e = starts.slice(li + 1).find(x => x != null);
+      if (e == null || e - s > 20) e = Math.min(lastEnd, s + Math.max(2, line.length*0.35));
+      const chars = Array.from(line), n = chars.length; let res = '', prev = null;
+      for (let j = 0; j < n; j++) {
+        const tA = s + (e - s)*j/n, tB = s + (e - s)*(j + 1)/n;
+        let ci = chordAt(r, tA);
+        if (j === 0) { ci = chordAt(r, s + 0.15); }
+        const mid = chordAt(r, (tA + tB)/2);
+        if (j > 0 && mid !== prev && chordAt(r, tB) === mid) ci = mid;
+        if (ci !== prev && ci >= 0) res += '[' + chordName(ci, shift, flats) + ']';
+        if (ci !== prev) prev = ci;
+        res += chars[j];
+      }
+      out.push(res);
+    });
+    return out.join('\n');
   }
 
   const FLAT_MAJ = [5,10,3,8,1,6], FLAT_MIN = [2,7,0,5,10,3];
   const useFlats = key => (key.minor ? FLAT_MIN : FLAT_MAJ).includes(key.root);
-  const MIX = ['C','C#','D','Eb','E','F','F#','G','G#','A','Bb','B'];
   const noteName = (pc, flats) => (flats ? FL : MIX)[((pc % 12) + 12) % 12];
   function chordName(ci, shift, flats) { if (ci < 0) return 'N.C.'; const ch = CHORDS[ci]; return noteName(ch.root + shift, flats) + ch.suf; }
   function keyName(key, shift) { const r = key.root + shift; const k = { root: ((r % 12) + 12) % 12, minor: key.minor }; return noteName(k.root, useFlats(k)) + (k.minor ? 'm' : ''); }
+  const pcOf = (l, a) => { let r = SH.indexOf(l); if (a === '#') r++; if (a === 'b') r--; return (r + 12) % 12; };
   function parseChord(name) {
     const m = /^([A-G])(#|b)?(.*)$/.exec(name); if (!m) return -1;
-    let r = SH.indexOf(m[1]); if (m[2] === '#') r++; if (m[2] === 'b') r--;
-    r = (r + 12) % 12; return CHORDS.findIndex(c => c.root === r && c.suf === m[3]);
+    const r = pcOf(m[1], m[2]); return CHORDS.findIndex(c => c.root === r && c.suf === m[3]);
+  }
+  // 手で書いたコード名（C/E, F#m7-5 など）も移調する
+  function transposeName(name, shift, flats) {
+    if (!shift) return name;
+    return name.replace(/([A-G])(#|b)?/g, (_, l, a) => noteName(pcOf(l, a) + shift, flats));
   }
 
   // デモ音（ピアノ風の和音＋ベース＋拍の打音）
@@ -367,7 +494,7 @@ const Core = (() => {
       const ch = CHORDS[parseChord(name)];
       for (let b = 0; b < beats; b++) {
         const at = t + b*beat;
-        if (b % 2 === 0) ch.iv.forEach(d => tone(60 + ((ch.root + d) % 12) - (ch.root + d) % 12 + ch.root + d - (ch.root > 6 ? 12 : 0), at, beat*2, 0.12));
+        if (b % 2 === 0) ch.iv.forEach(d => tone(60 + ch.root + d - (ch.root > 6 ? 12 : 0), at, beat*2, 0.12));
         tone(36 + ch.root, at, beat, 0.22);
         const i0 = Math.floor(at*sr); for (let i = 0; i < 0.03*sr && i0 + i < x.length; i++) x[i0+i] += 0.3*rnd()*Math.exp(-i/(0.008*sr));
       }
@@ -376,7 +503,7 @@ const Core = (() => {
     return x;
   }
 
-  return { CHORDS, makeAnalyzer, analyze, best, chordName, keyName, useFlats, noteName, parseChord, synth };
+  return { CHORDS, QUALS, makeAnalyzer, analyze, best, segsOf, barsOf, chordAt, alignLyrics, chordName, keyName, useFlats, noteName, parseChord, transposeName, synth };
 })();
 
 </script>
@@ -385,7 +512,7 @@ const Core = (() => {
   const $ = id => document.getElementById(id);
   const DEMO = [['C',4],['G',4],['Am',4],['Em',4],['F',4],['C',4],['Dm7',4],['G7',4]];
   const DEMO_BPM = 100;
-  const state = { result: null, meta: { title: 'デモの進行', url: '' }, tr: 0, capo: 0, example: true };
+  const state = { result: null, meta: { title: 'デモの進行', url: '' }, tr: 0, capo: 0, example: true, lyrics: '', starts: null, cp: '', cpManual: false, at: 0 };
   const fmt = s => { s = Math.max(0, Math.round(s)); return Math.floor(s/60) + ':' + String(s%60).padStart(2, '0'); };
   const setStatus = (m, ok) => { $('status').textContent = m; $('status').className = 'status' + (ok ? ' ok' : ''); };
 
@@ -401,11 +528,11 @@ const Core = (() => {
   $('yt').addEventListener('input', onUrl);
 
   // ---- 表示 ----
+  const flatsFor = (r, shift) => Core.useFlats({ root: ((r.key.root + shift) % 12 + 12) % 12, minor: r.key.minor });
+  let edTarget = null;
   function render() {
     const r = state.result; if (!r) return;
-    const shift = state.tr - state.capo;
-    const flats = Core.useFlats({ root: ((r.key.root + shift) % 12 + 12) % 12, minor: r.key.minor });
-    const nm = ci => Core.chordName(ci, shift, flats);
+    const shift = state.tr - state.capo, flats = flatsFor(r, shift), nm = ci => Core.chordName(ci, shift, flats);
     $('exTag').hidden = !state.example;
     $('trOut').textContent = (state.tr > 0 ? '+' : '') + state.tr;
     $('chips').innerHTML = '';
@@ -416,37 +543,128 @@ const Core = (() => {
     chip('長さ', fmt(r.dur));
     $('capoHint').textContent = state.capo ? `押さえ方は ${Core.keyName(r.key, shift)} キーの形（実際の音は ${Core.keyName(r.key, state.tr)}）` : '';
     const sh = $('sheet'); sh.innerHTML = '';
-    const bars = r.bars && r.bars.length ? r.bars : null;
-    if (bars) {
-      bars.forEach((br, i) => {
-        const d = document.createElement('div'); d.className = 'bar';
-        const n = document.createElement('span'); n.className = 'n'; n.textContent = i + 1; d.append(n);
-        br.forEach(ci => { const c = document.createElement('span'); c.className = ci < 0 ? 'nc' : 'c' + (br.length > 1 ? ' two' : ''); c.textContent = nm(ci); d.append(c); });
-        sh.append(d);
+    Core.barsOf(r).forEach((bar, i) => {
+      const d = document.createElement('div'); d.className = 'bar' + (edTarget && edTarget.bar === bar.i ? ' sel' : '');
+      const n = document.createElement('span'); n.className = 'n'; n.textContent = i + 1; d.append(n);
+      bar.items.forEach(it => {
+        const c = document.createElement('button'); c.className = 'c' + (bar.items.length > 1 ? ' two' : '') + (it.ci < 0 ? ' nc' : '');
+        c.textContent = nm(it.ci); c.title = '押すと直せます';
+        c.onclick = () => openEd(i + 1, bar, it);
+        d.append(c);
       });
-    } else {
-      const d = document.createElement('div'); d.className = 'bar'; d.style.gridColumn = '1 / -1';
-      d.textContent = 'テンポが取れなかったため、小節表示はありません。時間順の一覧を見てください。'; sh.append(d);
-    }
+      sh.append(d);
+    });
     $('tl').innerHTML = '';
-    r.segs.filter(s => s.ci >= 0).forEach(s => { const sp = document.createElement('span'); sp.innerHTML = '<i></i>'; sp.querySelector('i').textContent = fmt(s.s); sp.append(nm(s.ci)); $('tl').append(sp); });
-    if (!bars) $('tl').closest('details').open = true;
+    Core.segsOf(r).filter(s => s.ci >= 0).forEach(s => { const sp = document.createElement('span'); sp.innerHTML = '<i></i>'; sp.querySelector('i').textContent = fmt(s.s); sp.append(nm(s.ci)); $('tl').append(sp); });
+    renderCp();
   }
+
+  // ---- コードの手直し ----
+  Core.QUALS.forEach(([suf]) => { const o = document.createElement('option'); o.value = suf; o.textContent = suf || '（メジャー）'; $('edQual').append(o); });
+  { const o = document.createElement('option'); o.value = 'NC'; o.textContent = 'N.C.（コードなし）'; $('edQual').append(o); }
+  function openEd(no, bar, it) {
+    const r = state.result, shift = state.tr - state.capo, flats = flatsFor(r, shift);
+    edTarget = { bar: bar.i, barEnd: bar.items.reduce((m, x) => Math.max(m, x.a + x.n), 0), a: it.a, n: it.n };
+    $('edRoot').innerHTML = '';
+    for (let p = 0; p < 12; p++) { const o = document.createElement('option'); o.value = p; o.textContent = Core.noteName(p, flats); $('edRoot').append(o); }
+    if (it.ci >= 0) { const ch = Core.CHORDS[it.ci]; $('edRoot').value = ((ch.root + shift) % 12 + 12) % 12; $('edQual').value = ch.suf; } else $('edQual').value = 'NC';
+    $('edWhere').textContent = `小節 ${no}` + (bar.items.length > 1 ? `（${bar.items.indexOf(it) === 0 ? '前' : '後'}）` : '');
+    $('ed').hidden = false; render(); $('edRoot').focus();
+  }
+  function applyEd(whole) {
+    if (!edTarget) return; const r = state.result, shift = state.tr - state.capo;
+    const q = $('edQual').value, root = ((+$('edRoot').value - shift) % 12 + 12) % 12;
+    const ci = q === 'NC' ? -1 : Core.CHORDS.findIndex(c => c.root === root && c.suf === q);
+    const a = whole ? edTarget.bar : edTarget.a, z = whole ? edTarget.barEnd : edTarget.a + edTarget.n;
+    for (let i = a; i < z; i++) r.bc[i] = ci;
+    edTarget = null; $('ed').hidden = true; state.example = false;
+    if (state.starts && !state.cpManual) rebuildCp();
+    render(); persist();
+  }
+  $('edApply').onclick = () => applyEd(false);
+  $('edBar').onclick = () => applyEd(true);
+  $('edCancel').onclick = () => { edTarget = null; $('ed').hidden = true; render(); };
+
+  // ---- 歌詞つきコード譜 ----
+  const linesOf = () => $('lyrics').value.replace(/\r/g, '').split('\n');
+  function rebuildCp() {
+    const r = state.result; if (!r || !state.starts) return;
+    state.cp = Core.alignLyrics(r, linesOf(), state.starts, 0, flatsFor(r, 0));
+    state.cpManual = false; $('cp').value = state.cp;
+  }
+  function renderCp() {
+    const v = $('cpView'); if (!state.cp) return;
+    const r = state.result, shift = state.tr - state.capo, flats = r ? flatsFor(r, shift) : false;
+    v.innerHTML = '';
+    state.cp.split('\n').forEach(line => {
+      const d = document.createElement('div'); d.className = 'lyl';
+      const parts = line.split(/(\[[^\]]*\])/); let chord = '';
+      const add = (ch, tx) => { const sg = document.createElement('span'); sg.className = 'sg'; const c = document.createElement('span'); c.className = 'ch'; c.textContent = ch ? Core.transposeName(ch, shift, flats) : ''; const t = document.createElement('span'); t.className = 'tx'; t.textContent = tx || ' '; sg.append(c, t); d.append(sg); };
+      parts.forEach(p => {
+        if (/^\[.*\]$/.test(p)) { if (chord) add(chord, ''); chord = p.slice(1, -1); }
+        else if (p) { add(chord, p); chord = ''; }
+      });
+      if (chord) add(chord, '');
+      if (!line.trim()) d.style.minHeight = '0.8em';
+      v.append(d);
+    });
+  }
+  $('cp').addEventListener('input', () => { state.cp = $('cp').value; state.cpManual = true; renderCp(); persistSoon(); });
+  $('lyrics').addEventListener('input', () => { state.lyrics = $('lyrics').value; persistSoon(); });
+  $('btnEven').onclick = () => {
+    const r = state.result, lines = linesOf(); if (!r) return;
+    if (!lines.some(l => l.trim())) { setLyrStatus('先に歌詞を貼ってください。'); return; }
+    const voiced = r.beats.filter((t, i) => r.bc[i] >= 0), a = voiced[0] ?? 0, z = voiced[voiced.length - 1] ?? r.dur;
+    const idx = lines.map((l, i) => l.trim() ? i : -1).filter(i => i >= 0), step = (z - a)/idx.length;
+    state.starts = lines.map(() => null); idx.forEach((li, k) => state.starts[li] = a + k*step);
+    rebuildCp(); renderCp(); persist(); setLyrStatus('');
+  };
+  const setLyrStatus = m => { if (m) setStatus(m); };
+
+  // 動画に合わせて行を区切る
+  let sync = null;
+  $('btnSync').onclick = () => {
+    const lines = linesOf(), idx = lines.map((l, i) => l.trim() ? i : -1).filter(i => i >= 0);
+    if (!idx.length) { setStatus('先に歌詞を貼ってください。'); $('lyrics').focus(); return; }
+    if (!state.result || state.example) { setStatus('先に 1 でコード譜を作ってください（同じ動画で区切ります）。'); return; }
+    if (!player || !player.playVideo || !playerOk) { setStatus('この機能は、1 のリンクの動画で使います。リンクを貼り直してください。'); return; }
+    sync = { lines, idx, k: 0, starts: lines.map(() => null) };
+    $('sync').hidden = false; showSync();
+    try { player.setPlaybackRate(1); player.seekTo(0, true); player.playVideo(); } catch (e) {}
+    $('btnTap').focus();
+  };
+  function showSync() {
+    const { lines, idx, k } = sync;
+    $('syncCur').textContent = k === 0 ? '（前奏）' : lines[idx[k - 1]];
+    $('syncNext').textContent = k < idx.length ? lines[idx[k]] : '（おわり）';
+  }
+  function tap() {
+    if (!sync) return;
+    if (sync.k < sync.idx.length) { sync.starts[sync.idx[sync.k]] = player.getCurrentTime(); sync.k++; showSync(); }
+    if (sync.k >= sync.idx.length) { setTimeout(endSync, 50); }
+  }
+  function endSync(cancel) {
+    if (!sync) return; const s = sync; sync = null; $('sync').hidden = true;
+    if (cancel === true) { try { player.pauseVideo(); } catch (e) {} return; }
+    state.starts = s.starts; rebuildCp(); renderCp(); persist();
+    setStatus('歌詞つきコード譜ができました。ずれた所は「位置を手で直す」で直せます。', true);
+  }
+  $('btnTap').onclick = tap;
+  $('btnBack').onclick = () => { if (sync && sync.k > 0) { sync.k--; sync.starts[sync.idx[sync.k]] = null; showSync(); try { player.seekTo(Math.max(0, player.getCurrentTime() - 5), true); } catch (e) {} } };
+  $('btnSyncStop').onclick = () => endSync(true);
+  document.addEventListener('keydown', e => { if (sync && (e.code === 'Space' || e.key === ' ') && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') { e.preventDefault(); tap(); } });
+
   function sheetText() {
-    const r = state.result, shift = state.tr - state.capo;
-    const flats = Core.useFlats({ root: ((r.key.root + shift) % 12 + 12) % 12, minor: r.key.minor });
-    const nm = ci => Core.chordName(ci, shift, flats);
+    const r = state.result, shift = state.tr - state.capo, flats = flatsFor(r, shift), nm = ci => Core.chordName(ci, shift, flats);
     const L = [];
     L.push('曲名: ' + (state.meta.title || '（未記入）'));
     if (state.meta.url) L.push('URL: ' + state.meta.url);
     L.push(`キー: ${Core.keyName(r.key, state.tr)}（推定）` + (r.bpm ? ` / テンポ 約${r.bpm}` : '') + (state.tr ? ` / 移調 ${state.tr > 0 ? '+' : ''}${state.tr}` : '') + (state.capo ? ` / カポ${state.capo}` : ''));
     L.push('');
-    if (r.bars && r.bars.length) {
-      for (let i = 0; i < r.bars.length; i += 4) L.push('| ' + r.bars.slice(i, i + 4).map(b => b.map(nm).join(' ').padEnd(10)).join('| ') + '|');
-    }
-    L.push(''); L.push('[時間順]');
-    L.push(r.segs.filter(s => s.ci >= 0).map(s => fmt(s.s) + ' ' + nm(s.ci)).join('  '));
-    L.push(''); L.push('※ 耳コピコード帳による自動聴き取り（目安）');
+    const bars = Core.barsOf(r);
+    for (let i = 0; i < bars.length; i += 4) L.push('| ' + bars.slice(i, i + 4).map(b => b.items.map(x => nm(x.ci)).join(' ').padEnd(10)).join('| ') + '|');
+    if (state.cp) { L.push(''); L.push('[歌詞つき]'); state.cp.split('\n').forEach(l => L.push(l.replace(/\[([^\]]*)\]/g, (_, c) => '[' + Core.transposeName(c, shift, flats) + ']'))); }
+    L.push(''); L.push('※ 耳コピコード帳による聴き取り（目安）');
     return L.join('\n');
   }
 
@@ -475,30 +693,43 @@ const Core = (() => {
   };
 
   // ---- 履歴（この端末のみ） ----
-  const HK = 'mimikopi.history.v1';
+  const HK = 'mimikopi.history.v2';
   const loadH = () => { try { return JSON.parse(localStorage.getItem(HK) || '[]'); } catch (e) { return []; } };
   const saveH = h => { try { localStorage.setItem(HK, JSON.stringify(h.slice(0, 30))); } catch (e) {} };
+  function persist() {
+    if (!state.at) return;
+    const h = loadH(), it = h.find(x => x.at === state.at); if (!it) return;
+    Object.assign(it, { result: state.result, lyrics: $('lyrics').value, starts: state.starts, cp: state.cp, cpManual: state.cpManual }); saveH(h);
+  }
+  let pt = 0; const persistSoon = () => { clearTimeout(pt); pt = setTimeout(persist, 600); };
   function renderH() {
     const h = loadH(), box = $('hist');
-    if (!h.length) return;
+    if (!h.length) { box.innerHTML = '<p class="hint">まだありません。聴き取ると自動で残ります（この端末のブラウザ内だけ）。</p>'; return; }
     box.innerHTML = '';
     h.forEach((it, i) => {
       const d = document.createElement('div'); d.className = 'it';
-      const s = document.createElement('span'); s.textContent = `${it.title || '（曲名なし）'}　${new Date(it.at).toLocaleDateString('ja-JP')}　キー ${Core.keyName(it.result.key, 0)}`;
+      const s = document.createElement('span'); s.textContent = `${it.title || '（曲名なし）'}　${new Date(it.at).toLocaleDateString('ja-JP')}　キー ${Core.keyName(it.result.key, 0)}${it.cp ? '　歌詞あり' : ''}`;
       const o = document.createElement('button'); o.textContent = '開く';
-      o.onclick = () => { state.result = it.result; state.meta = { title: it.title, url: it.url }; state.tr = 0; state.capo = 0; $('capo').value = 0; state.example = false; render(); $('h-sheet').scrollIntoView({ behavior: 'smooth' }); };
+      o.onclick = () => {
+        Object.assign(state, { result: it.result, meta: { title: it.title, url: it.url }, tr: 0, capo: 0, example: false, starts: it.starts || null, cp: it.cp || '', cpManual: !!it.cpManual, at: it.at });
+        $('capo').value = 0; $('lyrics').value = it.lyrics || ''; $('cp').value = state.cp; $('ttl').value = it.title || ''; $('yt').value = it.url || ''; onUrl();
+        if (!state.cp) $('cpView').innerHTML = '<p class="hint">歌詞を貼って、上のどちらかのボタンを押すと、ここに歌詞の上にコードが並びます。</p>';
+        render(); $('h-sheet').scrollIntoView({ behavior: 'smooth' });
+      };
       const x = document.createElement('button'); x.textContent = '削除';
-      x.onclick = () => { const hh = loadH(); hh.splice(i, 1); saveH(hh); if (!hh.length) box.innerHTML = '<p class="hint">まだありません。</p>'; else renderH(); };
+      x.onclick = () => { const hh = loadH(); hh.splice(i, 1); saveH(hh); renderH(); };
       d.append(s, o, x); box.append(d);
     });
   }
   function finish(result, isDemo) {
     if (!result) { setStatus('音が短すぎるか、聴き取れませんでした。10 秒以上の音で試してください。'); return; }
-    state.result = result; state.tr = 0; state.capo = 0; $('capo').value = 0; state.example = !!isDemo;
+    Object.assign(state, { result, tr: 0, capo: 0, example: !!isDemo, starts: null, cp: '', cpManual: false, at: 0 });
+    $('capo').value = 0; $('cp').value = ''; edTarget = null; $('ed').hidden = true;
+    $('cpView').innerHTML = '<p class="hint">歌詞を貼って、上のどちらかのボタンを押すと、ここに歌詞の上にコードが並びます。</p>';
     state.meta = isDemo ? { title: 'デモの進行', url: '' } : { title: $('ttl').value.trim(), url: $('yt').value.trim() };
     render();
-    if (!isDemo) { const h = loadH(); h.unshift({ at: Date.now(), title: state.meta.title, url: state.meta.url, result }); saveH(h); renderH(); }
-    setStatus(isDemo ? 'デモを聴き取りました（正解: C G Am Em F C Dm7 G7 ×2）。' : 'コード譜ができました。', true);
+    if (!isDemo) { state.at = Date.now(); const h = loadH(); h.unshift({ at: state.at, title: state.meta.title, url: state.meta.url, result, lyrics: $('lyrics').value }); saveH(h); renderH(); }
+    setStatus(isDemo ? 'デモを聴き取りました（正解: C G Am Em F C Dm7 G7 ×2）。' : 'コード譜ができました。違うところはコード名を押して直せます。', true);
     $('h-sheet').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -647,7 +878,7 @@ const Core = (() => {
 
   // 初期表示: デモ進行の例（デモ音を実際に解析した結果）
   renderH();
-  runOffline(Core.synth(DEMO.concat(DEMO), DEMO_BPM, 22050), 22050).then(r => { if (!state.result || state.example) { state.result = r; render(); } });
+  runOffline(Core.synth(DEMO.concat(DEMO), DEMO_BPM, 22050), 22050).then(r => { if (!state.result || state.example) { state.result = r; render(); renderCp(); } });
 })();
 </script>
 
