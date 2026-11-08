@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}body{margin:0}</style></head><body>
+<title>耳コピコード帳</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* レイアウト: 上から「入力 → 聴き取り → コード譜」の一本道。コード譜は五線紙のような小節グリッド */
+:root{
+  --bg:#eef2f4; --paper:#ffffff; --ink:#18232c; --muted:#5c6b77; --line:#cfd8de;
+  --accent:#0d7a83; --accent-ink:#ffffff; --hot:#e8a400; --warn:#b5462f;
+  --f-display:"Dela Gothic One","Hiragino Sans","Noto Sans JP",sans-serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  --f-chord:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1519; --paper:#172027; --ink:#e3eaef; --muted:#93a3ae; --line:#2b3943;
+  --accent:#4cc3cc; --accent-ink:#06262a; --hot:#ffc23d; --warn:#f08a70; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1519; --paper:#172027; --ink:#e3eaef; --muted:#93a3ae; --line:#2b3943;
+  --accent:#4cc3cc; --accent-ink:#06262a; --hot:#ffc23d; --warn:#f08a70; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6}
+.wrap{max-width:860px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px;display:grid;gap:18px}
+header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--f-display);font-weight:400;font-size:clamp(26px,5vw,36px);margin:0;letter-spacing:.02em}
+header p{margin:0;color:var(--muted);font-size:13px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px;min-width:0}
+h2{font-size:15px;margin:0;display:flex;gap:8px;align-items:center;text-wrap:balance}
+h2 .no{font-family:var(--f-chord);font-size:12px;color:var(--accent);border:1px solid var(--accent);border-radius:99px;padding:0 7px}
+label{font-size:13px;color:var(--muted);display:grid;gap:4px}
+input[type=text],input[type=url],select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;box-sizing:border-box;min-width:0}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+@media (max-width:560px){.grid2{grid-template-columns:1fr}}
+button,.btn{font:inherit;font-weight:700;border-radius:6px;border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:8px 14px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,.btn:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--hot);outline-offset:2px}
+.hint{font-size:12.5px;color:var(--muted);margin:0}
+.hint b{color:var(--ink)}
+.status{font-size:13px;color:var(--warn);margin:0;min-height:1em}
+.status.ok{color:var(--accent)}
+.live{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center}
+.now{font-family:var(--f-chord);font-weight:700;font-size:56px;line-height:1;min-width:3.2em;text-align:center;color:var(--accent)}
+.meter{height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--hot);transition:width .15s}
+.trail{font-family:var(--f-chord);font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-size:13px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;background:var(--bg)}
+.chip b{font-family:var(--f-chord)}
+.chip.ex{border-color:var(--hot);color:var(--ink)}
+.ctrl{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:13px}
+.ctrl .step{display:inline-flex;align-items:center;gap:4px}
+.ctrl .step button{padding:2px 10px}
+.ctrl output{font-family:var(--f-chord);min-width:2.4em;text-align:center}
+.sheet{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-left:2px solid var(--ink);font-family:var(--f-chord)}
+.bar{border-right:1px solid var(--ink);border-bottom:1px solid var(--line);padding:14px 6px 8px;min-height:30px;position:relative;display:flex;gap:6px;flex-wrap:wrap;align-items:baseline}
+.bar .n{position:absolute;top:1px;left:4px;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
+.bar .c{font-weight:700;font-size:17px}
+.bar .c.two{font-size:14px}
+.bar .nc{color:var(--muted);font-size:13px}
+.bar:nth-child(4n){border-right-width:2px}
+@media (max-width:420px){.bar .c{font-size:15px}.bar .c.two{font-size:12.5px}}
+.player{position:relative;width:100%;max-width:560px;aspect-ratio:16/9;background:#000;border-radius:8px;overflow:hidden}
+.player iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.tl{font-family:var(--f-chord);font-size:13px;display:flex;flex-wrap:wrap;gap:4px 14px;font-variant-numeric:tabular-nums}
+.tl span i{font-style:normal;color:var(--muted);margin-right:4px}
+details summary{cursor:pointer;font-size:13px;color:var(--muted)}
+.hist{display:grid;gap:6px}
+.hist .it{display:flex;gap:8px;align-items:center;font-size:13px;border-bottom:1px dashed var(--line);padding-bottom:6px}
+.hist .it span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist button{padding:2px 8px;font-size:12px;font-weight:500}
+textarea.copy{position:absolute;left:-9999px}
+@media (prefers-reduced-motion:reduce){.meter i{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>耳コピコード帳</h1>
+    <p>YouTube の音を聴き取って、コード譜の下書きを作ります。音声は外部に送信しません。</p>
+  </header>
+
+  <section class="card" aria-labelledby="h-in">
+    <h2 id="h-in"><span class="no">1</span>リンクを貼って「コード譜を作る」</h2>
+    <div class="grid2">
+      <label for="yt">YouTube のリンク
+        <input id="yt" type="url" placeholder="例: https://youtu.be/xxxxxxxxxxx" autocomplete="off">
+      </label>
+      <label for="ttl">曲名（メモ用）
+        <input id="ttl" type="text" placeholder="例: 6年 卒業式の歌">
+      </label>
+    </div>
+    <div class="row">
+      <button id="btnGo" class="primary">♪ コード譜を作る</button>
+      <label for="speed" style="display:inline-flex;flex-direction:row;align-items:center;gap:6px;color:var(--ink)">速さ
+        <select id="speed" style="width:auto;padding:4px 8px">
+          <option value="1">1 倍（おすすめ）</option>
+          <option value="1.5">1.5 倍</option>
+          <option value="2">2 倍（時短・精度やや下がる）</option>
+        </select>
+      </label>
+      <button id="btnStop" disabled>■ 途中で止めてコード譜にする</button>
+    </div>
+    <p class="hint" id="goHint">押すと「このタブを共有」の確認が出ます。<b>「共有」を押すだけ</b>で再生が始まり、<b>曲が終わると自動でコード譜</b>になります。</p>
+    <div id="playerWrap" class="player" hidden><div id="player"></div></div>
+    <div class="live" id="live" hidden>
+      <div class="now" id="now" aria-live="polite">–</div>
+      <div style="display:grid;gap:6px;min-width:0">
+        <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+        <div class="hint"><span id="elapsed">0:00</span> 聴き取り中</div>
+        <div class="trail" id="trail"></div>
+      </div>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </section>
+
+  <details class="card" id="more">
+    <summary><b>ほかの方法</b>（埋め込みできない動画・録音ファイル・デモ）</summary>
+    <div style="display:grid;gap:10px;margin-top:10px">
+      <div class="row">
+        <a id="openYt" class="btn" href="https://www.youtube.com/" target="_blank" rel="noopener">YouTube を別タブで開く ↗</a>
+        <button id="btnCap">● 別タブの音を聴き取る</button>
+      </div>
+      <p class="hint" id="capHint">共有画面で <b>YouTube のタブ</b>を選び、<b>「タブの音声も共有する」をオン</b>。動画を再生し、終わったら「途中で止めて…」を押します。</p>
+      <div class="row">
+        <label for="file" class="btn" style="color:var(--ink)">音声ファイルから…<input id="file" type="file" accept="audio/*,video/mp4,.m4a,.mp3,.wav" hidden></label>
+        <button id="btnDemo">デモ音で試す</button>
+        <button id="btnPlayDemo">▶ デモ音を聴く</button>
+      </div>
+      <p class="hint">ファイル例: 自分で録音した伴奏（mp3 / m4a / wav）。</p>
+    </div>
+  </details>
+
+  <section class="card" aria-labelledby="h-sheet">
+    <h2 id="h-sheet"><span class="no">2</span>コード譜 <span class="chip ex" id="exTag">例（デモの進行）</span></h2>
+    <div class="chips" id="chips"></div>
+    <div class="ctrl">
+      <span class="step">移調 <button id="trDn" aria-label="半音下げる">−</button><output id="trOut">0</output><button id="trUp" aria-label="半音上げる">＋</button></span>
+      <label for="capo" style="display:inline-flex;flex-direction:row;align-items:center;gap:6px;color:var(--ink)">カポ
+        <select id="capo" style="width:auto;padding:4px 8px"></select>
+      </label>
+      <span class="hint" id="capoHint"></span>
+    </div>
+    <div style="overflow-x:auto"><div class="sheet" id="sheet"></div></div>
+    <p class="hint">1 マス＝1 小節（4 拍の目安）。2 つ並ぶときは前半・後半。テンポが揺れる曲は、下の「時間順」も見てください。</p>
+    <details>
+      <summary>時間順のコード一覧</summary>
+      <div class="tl" id="tl" style="margin-top:8px"></div>
+    </details>
+    <div class="row">
+      <button id="btnCopy">テキストでコピー</button>
+      <button id="btnSave">.txt で保存</button>
+      <span class="hint" id="copyMsg"></span>
+    </div>
+    <p class="hint">聴き取りは目安です。9th や分数コードは近い基本形（例: C9→C、C/E→C）になります。仕上げは耳で確認してください。</p>
+  </section>
+
+  <section class="card" aria-labelledby="h-hist">
+    <h2 id="h-hist">この端末の履歴</h2>
+    <div class="hist" id="hist"><p class="hint">まだありません。聴き取ると自動で残ります（この端末のブラウザ内だけ）。</p></div>
+  </section>
+</div>
+
+<script>
+const Core = (() => {
+  const SH = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const FL = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+  const QUALS = [['',[0,4,7],1],['m',[0,3,7],1],['7',[0,4,7,10],.95],['m7',[0,3,7,10],.95],['M7',[0,4,7,11],.94],['sus4',[0,5,7],.92],['dim',[0,3,6],.9]];
+  const HW = [1,.55,.3,.17,.09,.05], HPC = [0,0,7,0,4,7];
+  const norm = v => { let s = 0; for (const x of v) s += x*x; s = Math.sqrt(s) || 1; return v.map(x => x/s); };
+  const CHORDS = [];
+  for (const [suf, iv, prior] of QUALS) for (let r = 0; r < 12; r++) {
+    const t = new Array(12).fill(0);
+    iv.forEach((d, i) => { const w = i === 0 ? 1.1 : 1; for (let h = 0; h < 6; h++) t[(r+d+HPC[h]) % 12] += w*HW[h]; });
+    CHORDS.push({ root: r, suf, iv, prior, t: norm(t) });
+  }
+
+  function makeFFT(N) {
+    const lev = Math.log2(N) | 0, rev = new Uint32Array(N);
+    for (let i = 0; i < N; i++) { let r = 0, x = i; for (let j = 0; j < lev; j++) { r = (r << 1) | (x & 1); x >>= 1; } rev[i] = r; }
+    const cs = new Float64Array(N/2), sn = new Float64Array(N/2);
+    for (let i = 0; i < N/2; i++) { cs[i] = Math.cos(2*Math.PI*i/N); sn[i] = -Math.sin(2*Math.PI*i/N); }
+    return (re, im) => {
+      for (let i = 0; i < N; i++) { const j = rev[i]; if (j > i) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; } }
+      for (let size = 2; size <= N; size <<= 1) {
+        const half = size >> 1, step = N / size;
+        for (let i = 0; i < N; i += size) for (let j = 0, k = 0; j < half; j++, k += step) {
+          const a = i + j, b = a + half;
+          const tr = re[b]*cs[k] - im[b]*sn[k], ti = re[b]*sn[k] + im[b]*cs[k];
+          re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+        }
+      }
+    };
+  }
+
+  // 1フレーム（N サンプル）→ クロマ・低音クロマ・音量・立ち上がり
+  function makeAnalyzer(sr, N) {
+    const fft = makeFFT(N), win = new Float64Array(N), re = new Float64Array(N), im = new Float64Array(N);
+    for (let i = 0; i < N; i++) win[i] = 0.5 - 0.5*Math.cos(2*Math.PI*i/(N-1));
+    const kLo = Math.max(2, Math.floor(60*N/sr)), kHi = Math.ceil(2300*N/sr), fHi = Math.ceil(4000*N/sr);
+    const mag = new Float64Array(fHi + 2); let prev = null;
+    return frame => {
+      for (let i = 0; i < N; i++) { re[i] = frame[i]*win[i]; im[i] = 0; }
+      fft(re, im);
+      let mx = 0, en = 0, flux = 0;
+      const L = new Float64Array(fHi + 1);
+      for (let k = 1; k <= fHi + 1; k++) {
+        const m = Math.hypot(re[k], im[k]); mag[k] = m;
+        if (k <= fHi) { L[k] = Math.log1p(m); if (prev) { const d = L[k] - prev[k]; if (d > 0) flux += d; } }
+        if (k >= kLo && k <= kHi) { if (m > mx) mx = m; en += m*m; }
+      }
+      prev = L;
+      const c = new Array(12).fill(0), b = new Array(12).fill(0), thr = mx*0.015;
+      for (let k = kLo + 1; k < kHi; k++) {
+        const m = mag[k];
+        if (m <= thr || m <= mag[k-1] || m < mag[k+1]) continue;
+        const a0 = Math.log(mag[k-1] + 1e-12), a1 = Math.log(m), a2 = Math.log(mag[k+1] + 1e-12);
+        const den = a0 - 2*a1 + a2, p = den ? 0.5*(a0 - a2)/den : 0;
+        const f = (k + p)*sr/N, midi = 69 + 12*Math.log2(f/440), mr = Math.round(midi), dev = Math.abs(midi - mr);
+        if (dev > 0.4) continue;
+        const w = Math.sqrt(m)*(1 - dev*1.6), pc = ((mr % 12) + 12) % 12;
+        if (mr >= 45 && mr <= 96) c[pc] += w;
+        if (mr >= 33 && mr <= 55) b[pc] += w;
+      }
+      return { c, b, e: en/(N*N), f: flux };
+    };
+  }
+
+  function scoreChord(cn, bass, bmax, ch) {
+    let d = 0; for (let i = 0; i < 12; i++) d += cn[i]*ch.t[i];
+    return d*ch.prior + (bmax > 0 ? 0.08*bass[ch.root]/bmax : 0);
+  }
+  function best(c, b) {
+    const cn = norm(c), bmax = Math.max(...b); let bi = -1, bs = -1;
+    CHORDS.forEach((ch, i) => { const s = scoreChord(cn, b, bmax, ch); if (s > bs) { bs = s; bi = i; } });
+    return bi;
+  }
+
+  const KMAJ = [6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88];
+  const KMIN = [6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17];
+  function corr(a, b) {
+    const ma = a.reduce((s,x)=>s+x,0)/12, mb = b.reduce((s,x)=>s+x,0)/12; let n = 0, da = 0, db = 0;
+    for (let i = 0; i < 12; i++) { n += (a[i]-ma)*(b[i]-mb); da += (a[i]-ma)**2; db += (b[i]-mb)**2; }
+    return n/Math.sqrt(da*db || 1);
+  }
+  function estimateKey(sum) {
+    let bk = { root: 0, minor: false }, bs = -2;
+    for (let r = 0; r < 12; r++) for (const minor of [false, true]) {
+      const p = minor ? KMIN : KMAJ, rot = p.map((_, i) => p[(i - r + 12) % 12]);
+      const s = corr(sum, rot); if (s > bs) { bs = s; bk = { root: r, minor }; }
+    }
+    return bk;
+  }
+
+  // 録り終えたフレーム列 → コード進行・キー・テンポ・小節
+  function analyze(frames, hop) {
+    const T = frames.length; if (T < 10) return null;
+    const es = frames.map(f => f.e).sort((a, b) => a - b), ref = es[Math.floor(T*0.9)] || 1e-12;
+    const R = Math.max(2, Math.round(0.3/hop));
+    const pc = Array.from({ length: 24 }, () => new Float64Array(T + 1)), pe = new Float64Array(T + 1);
+    for (let t = 0; t < T; t++) { for (let i = 0; i < 12; i++) { pc[i][t+1] = pc[i][t] + frames[t].c[i]; pc[12+i][t+1] = pc[12+i][t] + frames[t].b[i]; } pe[t+1] = pe[t] + frames[t].e; }
+    const S = CHORDS.length, SN = S + 1, emit = new Float32Array(T*SN), keySum = new Array(12).fill(0);
+    for (let t = 0; t < T; t++) {
+      const a = Math.max(0, t - R), z = Math.min(T, t + R + 1);
+      const c = [], b = []; for (let i = 0; i < 12; i++) { c.push(pc[i][z] - pc[i][a]); b.push(pc[12+i][z] - pc[12+i][a]); }
+      const rel = (pe[z] - pe[a])/(z - a)/ref, cn = norm(c), bmax = Math.max(...b);
+      const quiet = rel < 0.02 || c.every(x => x === 0);
+      for (let s = 0; s < S; s++) emit[t*SN + s] = scoreChord(cn, b, bmax, CHORDS[s])*(quiet ? 0.5 : 1);
+      emit[t*SN + S] = quiet ? 1.2 : rel < 0.06 ? 0.55 : 0.1;
+      if (!quiet) { const w = Math.sqrt(Math.min(rel, 4)); for (let i = 0; i < 12; i++) keySum[i] += cn[i]*w; }
+    }
+    // Viterbi（切り替えに罰則）
+    const lam = 0.18, back = new Int16Array(T*SN); let dp = new Float64Array(SN), nd = new Float64Array(SN);
+    for (let s = 0; s < SN; s++) dp[s] = emit[s];
+    for (let t = 1; t < T; t++) {
+      let bi = 0; for (let s = 1; s < SN; s++) if (dp[s] > dp[bi]) bi = s;
+      const bv = dp[bi] - lam;
+      for (let s = 0; s < SN; s++) {
+        if (dp[s] >= bv) { nd[s] = dp[s]; back[t*SN + s] = s; } else { nd[s] = bv; back[t*SN + s] = bi; }
+        nd[s] += emit[t*SN + s];
+      }
+      [dp, nd] = [nd, dp];
+    }
+    let s = 0; for (let i = 1; i < SN; i++) if (dp[i] > dp[s]) s = i;
+    const path = new Int16Array(T);
+    for (let t = T - 1; t >= 0; t--) { path[t] = s === S ? -1 : s; s = back[t*SN + s]; }
+    // 区間化＋短すぎる区間の吸収
+    let segs = [];
+    for (let t = 0; t < T; t++) { const l = segs[segs.length-1]; if (l && l.ci === path[t]) l.n++; else segs.push({ ci: path[t], a: t, n: 1 }); }
+    const minN = Math.round(0.4/hop); let changed = true;
+    while (changed && segs.length > 1) {
+      changed = false;
+      let mi = -1; segs.forEach((g, i) => { if (g.n < minN && (mi < 0 || g.n < segs[mi].n)) mi = i; });
+      if (mi >= 0) {
+        const L = segs[mi-1], Rg = segs[mi+1], tgt = !L ? Rg : !Rg ? L : (L.n >= Rg.n ? L : Rg);
+        if (tgt === L) L.n += segs[mi].n; else { Rg.a = segs[mi].a; Rg.n += segs[mi].n; }
+        segs.splice(mi, 1);
+        const m = []; for (const g of segs) { const l = m[m.length-1]; if (l && l.ci === g.ci) l.n += g.n; else m.push(g); }
+        segs = m; changed = true;
+      }
+    }
+    const lab = new Int16Array(T); for (const g of segs) for (let t = g.a; t < g.a + g.n; t++) lab[t] = g.ci;
+    const t0 = frames[0].t;
+    const outSegs = segs.map(g => ({ s: +(t0 + g.a*hop).toFixed(2), e: +(t0 + (g.a + g.n)*hop).toFixed(2), ci: g.ci }));
+    const key = estimateKey(keySum);
+    // テンポ・拍
+    let bpm = 0, bars = null;
+    const fl = frames.map(f => f.f), on = new Float64Array(T), W = 8;
+    for (let t = 0; t < T; t++) { let m = 0, n = 0; for (let j = Math.max(0, t-W); j <= Math.min(T-1, t+W); j++) { m += fl[j]; n++; } on[t] = Math.max(0, fl[t] - m/n); }
+    const lagMin = Math.max(2, Math.floor(60/190/hop)), lagMax = Math.min(T - 4, Math.ceil(60/58/hop));
+    const ac = new Float64Array(lagMax + 2); let bl = -1, bsc = 0;
+    for (let L = lagMin; L <= lagMax + 1; L++) { let s2 = 0; for (let t = 0; t + L < T; t++) s2 += on[t]*on[t+L]; ac[L] = s2/(T - L); }
+    for (let L = lagMin + 1; L <= lagMax; L++) {
+      const b2 = 60/(L*hop), w = Math.exp(-0.5*(Math.log2(b2/115)/0.8)**2), sc = ac[L]*w;
+      if (sc > bsc) { bsc = sc; bl = L; }
+    }
+    const dur = T*hop;
+    if (bl > 0 && dur > 8) {
+      const den = ac[bl-1] - 2*ac[bl] + ac[bl+1], P = bl + (den ? 0.5*(ac[bl-1] - ac[bl+1])/den : 0);
+      bpm = 60/(P*hop);
+      let bph = 0, bpv = -1;
+      for (let ph = 0; ph < P; ph += 0.25) { let s2 = 0; for (let x = ph; x < T; x += P) s2 += on[Math.round(x)] || 0; if (s2 > bpv) { bpv = s2; bph = ph; } }
+      const beats = []; for (let x = bph; x + P <= T + 0.01; x += P) beats.push(x);
+      const bc = beats.map(x => {
+        const cnt = new Map(); for (let t = Math.floor(x); t < Math.min(T, Math.floor(x + P)); t++) cnt.set(lab[t], (cnt.get(lab[t]) || 0) + 1);
+        let bk = -1, bv2 = -1; for (const [k, v] of cnt) if (v > bv2) { bv2 = v; bk = k; } return bk;
+      });
+      let off = 0, ov = -1;
+      for (let o = 0; o < 4; o++) { let v = 0; for (let i = 1; i < bc.length; i++) if (bc[i] !== bc[i-1]) { const m = ((i - o) % 4 + 4) % 4; v += m === 0 ? 1 : m === 2 ? 0.35 : 0; } if (v > ov) { ov = v; off = o; } }
+      bars = [];
+      if (off > 0) bars.push(bc.slice(0, off));
+      for (let i = off; i < bc.length; i += 4) bars.push(bc.slice(i, i + 4));
+      const same = (a, b) => a === b || (a >= 0 && b >= 0 && CHORDS[a].root === CHORDS[b].root);
+      bars = bars.map(br => br.filter((x, i) => i === 0 || !same(x, br[i-1])));
+      while (bars.length && bars[0].every(x => x < 0)) bars.shift();
+      while (bars.length && bars[bars.length-1].every(x => x < 0)) bars.pop();
+      bars = bars.map(br => br.length > 1 ? br.filter(x => x >= 0) : br).map(br => br.length ? br : [-1]);
+    }
+    return { segs: outSegs, key, bpm: Math.round(bpm), bars, dur: +dur.toFixed(1) };
+  }
+
+  const FLAT_MAJ = [5,10,3,8,1,6], FLAT_MIN = [2,7,0,5,10,3];
+  const useFlats = key => (key.minor ? FLAT_MIN : FLAT_MAJ).includes(key.root);
+  const MIX = ['C','C#','D','Eb','E','F','F#','G','G#','A','Bb','B'];
+  const noteName = (pc, flats) => (flats ? FL : MIX)[((pc % 12) + 12) % 12];
+  function chordName(ci, shift, flats) { if (ci < 0) return 'N.C.'; const ch = CHORDS[ci]; return noteName(ch.root + shift, flats) + ch.suf; }
+  function keyName(key, shift) { const r = key.root + shift; const k = { root: ((r % 12) + 12) % 12, minor: key.minor }; return noteName(k.root, useFlats(k)) + (k.minor ? 'm' : ''); }
+  function parseChord(name) {
+    const m = /^([A-G])(#|b)?(.*)$/.exec(name); if (!m) return -1;
+    let r = SH.indexOf(m[1]); if (m[2] === '#') r++; if (m[2] === 'b') r--;
+    r = (r + 12) % 12; return CHORDS.findIndex(c => c.root === r && c.suf === m[3]);
+  }
+
+  // デモ音（ピアノ風の和音＋ベース＋拍の打音）
+  function synth(prog, bpm, sr) {
+    const beat = 60/bpm, total = prog.reduce((s, p) => s + p[1], 0)*beat + 1;
+    const x = new Float32Array(Math.ceil(total*sr)); let t = 0.3;
+    const tone = (midi, at, len, amp) => {
+      const f = 440*2**((midi - 69)/12), i0 = Math.floor(at*sr), n = Math.floor(len*sr);
+      for (let h = 1; h <= 6; h++) {
+        const fh = f*h; if (fh > sr/2) break; const ah = amp*0.6**(h-1), w = 2*Math.PI*fh/sr;
+        for (let i = 0; i < n && i0 + i < x.length; i++) x[i0+i] += ah*Math.sin(w*i)*Math.exp(-i/sr/(0.9/h))*Math.min(1, i/(0.004*sr));
+      }
+    };
+    let seed = 7; const rnd = () => (seed = (seed*16807) % 2147483647)/2147483647 - 0.5;
+    for (const [name, beats] of prog) {
+      const ch = CHORDS[parseChord(name)];
+      for (let b = 0; b < beats; b++) {
+        const at = t + b*beat;
+        if (b % 2 === 0) ch.iv.forEach(d => tone(60 + ((ch.root + d) % 12) - (ch.root + d) % 12 + ch.root + d - (ch.root > 6 ? 12 : 0), at, beat*2, 0.12));
+        tone(36 + ch.root, at, beat, 0.22);
+        const i0 = Math.floor(at*sr); for (let i = 0; i < 0.03*sr && i0 + i < x.length; i++) x[i0+i] += 0.3*rnd()*Math.exp(-i/(0.008*sr));
+      }
+      t += beats*beat;
+    }
+    return x;
+  }
+
+  return { CHORDS, makeAnalyzer, analyze, best, chordName, keyName, useFlats, noteName, parseChord, synth };
+})();
+
+</script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const DEMO = [['C',4],['G',4],['Am',4],['Em',4],['F',4],['C',4],['Dm7',4],['G7',4]];
+  const DEMO_BPM = 100;
+  const state = { result: null, meta: { title: 'デモの進行', url: '' }, tr: 0, capo: 0, example: true };
+  const fmt = s => { s = Math.max(0, Math.round(s)); return Math.floor(s/60) + ':' + String(s%60).padStart(2, '0'); };
+  const setStatus = (m, ok) => { $('status').textContent = m; $('status').className = 'status' + (ok ? ' ok' : ''); };
+
+  // ---- YouTube リンク ----
+  function vidOf(u) {
+    const m = /(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)([\w-]{11})/.exec(u || ''); return m ? m[1] : '';
+  }
+  function onUrl() {
+    const id = vidOf($('yt').value.trim());
+    if (id) { $('openYt').href = 'https://www.youtube.com/watch?v=' + id; loadPlayer(id); }
+    else { $('openYt').href = 'https://www.youtube.com/'; if ($('yt').value.trim()) setStatus('リンクの形が読み取れません（例: https://youtu.be/xxxxxxxxxxx）'); }
+  }
+  $('yt').addEventListener('input', onUrl);
+
+  // ---- 表示 ----
+  function render() {
+    const r = state.result; if (!r) return;
+    const shift = state.tr - state.capo;
+    const flats = Core.useFlats({ root: ((r.key.root + shift) % 12 + 12) % 12, minor: r.key.minor });
+    const nm = ci => Core.chordName(ci, shift, flats);
+    $('exTag').hidden = !state.example;
+    $('trOut').textContent = (state.tr > 0 ? '+' : '') + state.tr;
+    $('chips').innerHTML = '';
+    const chip = (k, v) => { const s = document.createElement('span'); s.className = 'chip'; s.innerHTML = k + ' <b></b>'; s.querySelector('b').textContent = v; $('chips').append(s); };
+    if (state.meta.title) chip('曲', state.meta.title);
+    chip('キー（推定）', Core.keyName(r.key, state.tr));
+    if (r.bpm) chip('テンポ', '約 ' + r.bpm);
+    chip('長さ', fmt(r.dur));
+    $('capoHint').textContent = state.capo ? `押さえ方は ${Core.keyName(r.key, shift)} キーの形（実際の音は ${Core.keyName(r.key, state.tr)}）` : '';
+    const sh = $('sheet'); sh.innerHTML = '';
+    const bars = r.bars && r.bars.length ? r.bars : null;
+    if (bars) {
+      bars.forEach((br, i) => {
+        const d = document.createElement('div'); d.className = 'bar';
+        const n = document.createElement('span'); n.className = 'n'; n.textContent = i + 1; d.append(n);
+        br.forEach(ci => { const c = document.createElement('span'); c.className = ci < 0 ? 'nc' : 'c' + (br.length > 1 ? ' two' : ''); c.textContent = nm(ci); d.append(c); });
+        sh.append(d);
+      });
+    } else {
+      const d = document.createElement('div'); d.className = 'bar'; d.style.gridColumn = '1 / -1';
+      d.textContent = 'テンポが取れなかったため、小節表示はありません。時間順の一覧を見てください。'; sh.append(d);
+    }
+    $('tl').innerHTML = '';
+    r.segs.filter(s => s.ci >= 0).forEach(s => { const sp = document.createElement('span'); sp.innerHTML = '<i></i>'; sp.querySelector('i').textContent = fmt(s.s); sp.append(nm(s.ci)); $('tl').append(sp); });
+    if (!bars) $('tl').closest('details').open = true;
+  }
+  function sheetText() {
+    const r = state.result, shift = state.tr - state.capo;
+    const flats = Core.useFlats({ root: ((r.key.root + shift) % 12 + 12) % 12, minor: r.key.minor });
+    const nm = ci => Core.chordName(ci, shift, flats);
+    const L = [];
+    L.push('曲名: ' + (state.meta.title || '（未記入）'));
+    if (state.meta.url) L.push('URL: ' + state.meta.url);
+    L.push(`キー: ${Core.keyName(r.key, state.tr)}（推定）` + (r.bpm ? ` / テンポ 約${r.bpm}` : '') + (state.tr ? ` / 移調 ${state.tr > 0 ? '+' : ''}${state.tr}` : '') + (state.capo ? ` / カポ${state.capo}` : ''));
+    L.push('');
+    if (r.bars && r.bars.length) {
+      for (let i = 0; i < r.bars.length; i += 4) L.push('| ' + r.bars.slice(i, i + 4).map(b => b.map(nm).join(' ').padEnd(10)).join('| ') + '|');
+    }
+    L.push(''); L.push('[時間順]');
+    L.push(r.segs.filter(s => s.ci >= 0).map(s => fmt(s.s) + ' ' + nm(s.ci)).join('  '));
+    L.push(''); L.push('※ 耳コピコード帳による自動聴き取り（目安）');
+    return L.join('\n');
+  }
+
+  // ---- 移調・カポ ----
+  for (let i = 0; i <= 7; i++) { const o = document.createElement('option'); o.value = i; o.textContent = i ? i + ' フレット' : 'なし'; $('capo').append(o); }
+  $('trDn').onclick = () => { state.tr = Math.max(-6, state.tr - 1); render(); };
+  $('trUp').onclick = () => { state.tr = Math.min(6, state.tr + 1); render(); };
+  $('capo').onchange = () => { state.capo = +$('capo').value; render(); };
+
+  // ---- コピー・保存 ----
+  $('btnCopy').onclick = () => {
+    const t = sheetText();
+    const done = () => { $('copyMsg').textContent = 'コピーしました'; setTimeout(() => $('copyMsg').textContent = '', 2500); };
+    const fallback = () => { const ta = document.createElement('textarea'); ta.className = 'copy'; ta.value = t; document.body.append(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (e) {} ta.remove(); ok ? done() : ($('copyMsg').textContent = 'コピーできませんでした'); };
+    try { navigator.clipboard.writeText(t).then(done, fallback); } catch (e) { fallback(); }
+  };
+  $('btnSave').onclick = async () => {
+    const name = (state.meta.title || 'コード譜').replace(/[\\/:*?"<>|]/g, '_') + '.txt', t = sheetText();
+    if (window.claude && window.claude.use) {
+      const dl = await window.claude.use('downloads');
+      if (!dl) { $('copyMsg').textContent = 'この画面では保存できません。コピーを使ってください'; return; }
+      try { await dl.save({ filename: name, data: t }); } catch (e) { $('copyMsg').textContent = '保存しませんでした'; }
+      return;
+    }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([t], { type: 'text/plain' })); a.download = name; document.body.append(a); a.click(); a.remove();
+  };
+
+  // ---- 履歴（この端末のみ） ----
+  const HK = 'mimikopi.history.v1';
+  const loadH = () => { try { return JSON.parse(localStorage.getItem(HK) || '[]'); } catch (e) { return []; } };
+  const saveH = h => { try { localStorage.setItem(HK, JSON.stringify(h.slice(0, 30))); } catch (e) {} };
+  function renderH() {
+    const h = loadH(), box = $('hist');
+    if (!h.length) return;
+    box.innerHTML = '';
+    h.forEach((it, i) => {
+      const d = document.createElement('div'); d.className = 'it';
+      const s = document.createElement('span'); s.textContent = `${it.title || '（曲名なし）'}　${new Date(it.at).toLocaleDateString('ja-JP')}　キー ${Core.keyName(it.result.key, 0)}`;
+      const o = document.createElement('button'); o.textContent = '開く';
+      o.onclick = () => { state.result = it.result; state.meta = { title: it.title, url: it.url }; state.tr = 0; state.capo = 0; $('capo').value = 0; state.example = false; render(); $('h-sheet').scrollIntoView({ behavior: 'smooth' }); };
+      const x = document.createElement('button'); x.textContent = '削除';
+      x.onclick = () => { const hh = loadH(); hh.splice(i, 1); saveH(hh); if (!hh.length) box.innerHTML = '<p class="hint">まだありません。</p>'; else renderH(); };
+      d.append(s, o, x); box.append(d);
+    });
+  }
+  function finish(result, isDemo) {
+    if (!result) { setStatus('音が短すぎるか、聴き取れませんでした。10 秒以上の音で試してください。'); return; }
+    state.result = result; state.tr = 0; state.capo = 0; $('capo').value = 0; state.example = !!isDemo;
+    state.meta = isDemo ? { title: 'デモの進行', url: '' } : { title: $('ttl').value.trim(), url: $('yt').value.trim() };
+    render();
+    if (!isDemo) { const h = loadH(); h.unshift({ at: Date.now(), title: state.meta.title, url: state.meta.url, result }); saveH(h); renderH(); }
+    setStatus(isDemo ? 'デモを聴き取りました（正解: C G Am Em F C Dm7 G7 ×2）。' : 'コード譜ができました。', true);
+    $('h-sheet').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ---- オフライン解析（ファイル・デモ） ----
+  const N = 8192, HOP = 1024;
+  async function runOffline(x, sr) {
+    const an = Core.makeAnalyzer(sr, N), fr = [];
+    for (let p = 0; p + N <= x.length; p += HOP) {
+      const r = an(x.subarray(p, p + N)); r.t = (p + N/2)/sr; fr.push(r);
+      if (fr.length % 300 === 0) { setStatus(`解析中… ${Math.round(100*p/x.length)}%`, true); await new Promise(r => setTimeout(r)); }
+    }
+    return Core.analyze(fr, HOP/sr);
+  }
+  $('file').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return; e.target.value = '';
+    try {
+      setStatus('読み込み中…', true);
+      const ab = await f.arrayBuffer(), ac = new (window.AudioContext || window.webkitAudioContext)();
+      const buf = await ac.decodeAudioData(ab); ac.close();
+      const sr = 22050, oc = new OfflineAudioContext(1, Math.ceil(buf.duration*sr), sr), s = oc.createBufferSource();
+      s.buffer = buf; s.connect(oc.destination); s.start();
+      const out = await oc.startRendering();
+      if (!$('ttl').value.trim()) $('ttl').value = f.name.replace(/\.[^.]+$/, '');
+      finish(await runOffline(out.getChannelData(0), sr));
+    } catch (err) { setStatus('このファイルは読み込めませんでした。mp3 / m4a / wav で試してください。'); }
+  };
+  $('btnDemo').onclick = async () => { setStatus('デモ音を作っています…', true); await new Promise(r => setTimeout(r, 30)); finish(await runOffline(Core.synth(DEMO.concat(DEMO), DEMO_BPM, 22050), 22050), true); };
+  let demoCtx = null;
+  $('btnPlayDemo').onclick = () => {
+    if (demoCtx) { demoCtx.close(); demoCtx = null; $('btnPlayDemo').textContent = '▶ デモ音を聴く'; return; }
+    const x = Core.synth(DEMO, DEMO_BPM, 22050); demoCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const b = demoCtx.createBuffer(1, x.length, 22050); b.copyToChannel(x, 0);
+    const s = demoCtx.createBufferSource(); s.buffer = b; s.connect(demoCtx.destination); s.start();
+    $('btnPlayDemo').textContent = '■ 止める';
+    s.onended = () => { if (demoCtx) { demoCtx.close(); demoCtx = null; } $('btnPlayDemo').textContent = '▶ デモ音を聴く'; };
+  };
+
+  // ---- YouTube 埋め込みプレーヤー ----
+  const embedded = window.top !== window.self;
+  const mobile = /iPhone|iPad|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+  const noApi = !navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia;
+  let player = null, ytReady = false, pendingId = '', playerOk = false;
+  window.onYouTubeIframeAPIReady = () => { ytReady = true; if (pendingId) loadPlayer(pendingId); };
+  if (!embedded) { const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api'; sc.onerror = () => setStatus('YouTube のプレーヤーを読み込めませんでした。ネットにつながっているか確認してください。'); document.head.append(sc); }
+  function loadPlayer(id) {
+    pendingId = id; if (!ytReady) return;
+    $('playerWrap').hidden = false; playerOk = true;
+    if (player && player.cueVideoById) { player.cueVideoById(id); return; }
+    player = new YT.Player('player', { videoId: id, playerVars: { playsinline: 1, rel: 0 }, events: { onStateChange: onYtState, onError: onYtError } });
+  }
+  function onYtState(e) { if (e.data === 0 && cap && cap.auto) stopCap(); }
+  function onYtError(e) {
+    playerOk = false;
+    const msg = (e.data === 101 || e.data === 150) ? 'この動画は投稿者が埋め込み再生を許可していません。下の「ほかの方法」→「別タブの音を聴き取る」を使ってください。'
+      : e.data === 153 ? 'ファイルから直接開いているため、YouTube が再生を断りました（エラー153）。公開版の URL から開くか、「ほかの方法」を使ってください。'
+      : 'この動画は再生できませんでした（エラー ' + e.data + '）。リンクを確かめるか、「ほかの方法」を使ってください。';
+    setStatus(msg); $('more').open = true;
+    if (cap && cap.auto) stopCap(true);
+  }
+  if (embedded || noApi) {
+    $('btnGo').disabled = true; $('btnCap').disabled = true;
+    const why = embedded ? 'いまは <b>claude.ai のページの中</b>（またはプレビュー）で開いているため、YouTube の音を聴き取れません。'
+      : mobile ? '<b>スマホ・タブレットのブラウザ</b>は、タブの音の取り込みに対応していません。'
+      : 'このブラウザは、タブの音の取り込みに対応していません。';
+    $('goHint').innerHTML = why + '<br><b>公開版の URL</b> を Chrome で開いてください。ここでは「ほかの方法」の録音ファイルとデモが使えます。';
+    $('capHint').innerHTML = why;
+  }
+
+  // ---- 聴き取り（共通） ----
+  let cap = null;
+  const AUDIO = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+  function startCapture(stream, opts) {
+    const at = stream.getAudioTracks();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const dec = Math.max(1, Math.round(ctx.sampleRate/22050)), sr = ctx.sampleRate/dec;
+    const bufSize = 2 ** Math.round(Math.log2(HOP*dec)), len = bufSize/dec;
+    const src = ctx.createMediaStreamSource(new MediaStream(at)), sp = ctx.createScriptProcessor(bufSize, 1, 1);
+    const ring = new Float32Array(N), tmp = new Float32Array(len), an = Core.makeAnalyzer(sr, N);
+    const speed = opts.speed || 1;
+    const c = { stream, ctx, src, sp, frames: [], hop: len/sr*speed, total: 0, live: [], lastChord: -2, trail: [], level: 0, peak: 1e-12, auto: !!opts.auto, ok: !!opts.okFn };
+    sp.onaudioprocess = e => {
+      const inp = e.inputBuffer.getChannelData(0);
+      for (let i = 0; i < len; i++) { let s = 0; for (let j = 0; j < dec; j++) s += inp[i*dec + j]; tmp[i] = s/dec; }
+      ring.copyWithin(0, len); ring.set(tmp, N - len); c.total += len;
+      if (c.total < N) return;
+      if (opts.okFn && !opts.okFn()) return; // 一時停止中は記録しない
+      const r = an(ring); r.t = c.frames.length ? c.frames[0].t + c.frames.length*c.hop : (opts.timeFn ? Math.max(0, opts.timeFn() - N/2/sr*speed) : (c.total - N/2)/sr); c.frames.push(r);
+      c.peak = Math.max(c.peak*0.9995, r.e); c.level = r.e/c.peak;
+      c.live.push(r); if (c.live.length > 14) c.live.shift();
+      const cs = new Array(12).fill(0), bs = new Array(12).fill(0); let en = 0;
+      c.live.forEach(f => { for (let i = 0; i < 12; i++) { cs[i] += f.c[i]; bs[i] += f.b[i]; } en += f.e; });
+      const ci = en/c.live.length < c.peak*0.02 ? -1 : Core.best(cs, bs);
+      if (ci !== c.cur) { c.cur = ci; c.since = 0; } else c.since++;
+      if (c.since === Math.max(2, Math.round(6/speed)) && ci !== c.lastChord) { c.lastChord = ci; if (ci >= 0) { c.trail.push(ci); if (c.trail.length > 16) c.trail.shift(); } }
+    };
+    src.connect(sp); sp.connect(ctx.destination);
+    stream.getTracks().forEach(t => t.onended = () => stopCap());
+    c.timer = setInterval(() => {
+      $('elapsed').textContent = fmt(c.frames.length*c.hop);
+      $('meter').style.width = Math.round(100*Math.min(1, Math.sqrt(c.level))) + '%';
+      $('now').textContent = c.lastChord >= 0 ? Core.chordName(c.lastChord, 0, false) : '–';
+      $('trail').textContent = c.trail.map(x => Core.chordName(x, 0, false)).join('  ');
+    }, 200);
+    cap = c;
+    $('live').hidden = false; $('btnGo').disabled = true; $('btnCap').disabled = true; $('btnStop').disabled = false;
+  }
+  function stopCap(abort) {
+    if (!cap) return; const c = cap; cap = null;
+    clearInterval(c.timer); try { c.sp.disconnect(); c.src.disconnect(); } catch (e) {}
+    c.stream.getTracks().forEach(t => { t.onended = null; t.stop(); }); c.ctx.close();
+    if (c.auto && player && player.pauseVideo) { try { player.pauseVideo(); } catch (e) {} }
+    $('btnGo').disabled = false; $('btnCap').disabled = false; $('btnStop').disabled = true; $('live').hidden = true;
+    if (abort === true) return;
+    setStatus('コード譜にしています…', true);
+    setTimeout(() => finish(Core.analyze(c.frames, c.hop)), 30);
+  }
+  $('btnStop').onclick = () => stopCap();
+
+  // ---- リンクだけで作る（このタブの音を聴き取る） ----
+  $('btnGo').onclick = async () => {
+    const id = vidOf($('yt').value.trim());
+    if (!id) { setStatus('先に YouTube のリンクを貼ってください（例: https://youtu.be/xxxxxxxxxxx）'); $('yt').focus(); return; }
+    if (!player || !player.playVideo) { setStatus('プレーヤーを準備中です。数秒待ってからもう一度押してください。'); loadPlayer(id); return; }
+    if (!playerOk) { setStatus('この動画は埋め込み再生できません。「ほかの方法」を使ってください。'); $('more').open = true; return; }
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: AUDIO, preferCurrentTab: true, selfBrowserSurface: 'include', systemAudio: 'exclude' });
+    } catch (e) { setStatus('共有が取り消されました。もう一度押し、確認画面で「共有」を選んでください。'); return; }
+    if (!stream.getAudioTracks().length) { stream.getTracks().forEach(t => t.stop()); setStatus('音が届いていません。確認画面で「このタブの音声も共有する」にチェックを入れて、もう一度押してください。'); return; }
+    const speed = +$('speed').value || 1;
+    startCapture(stream, { auto: true, speed, okFn: () => player.getPlayerState() === 1, timeFn: () => player.getCurrentTime() });
+    try { player.setPlaybackRate(speed); player.seekTo(0, true); player.playVideo(); } catch (e) {}
+    setStatus('聴き取り中です。曲が終わると自動でコード譜になります。', true);
+  };
+
+  // ---- 別タブの音を聴き取る ----
+  $('btnCap').onclick = async () => {
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: AUDIO, systemAudio: 'include', selfBrowserSurface: 'exclude', preferCurrentTab: false });
+    } catch (e) { setStatus('共有が取り消されました。もう一度押して、YouTube のタブを選んでください。'); return; }
+    if (!stream.getAudioTracks().length) { stream.getTracks().forEach(t => t.stop()); setStatus('音が届いていません。共有画面で「タブ」を選び、「タブの音声も共有する」をオンにしてください。'); return; }
+    startCapture(stream, {});
+    setStatus('聴き取り中です。YouTube のタブで動画を頭から再生し、終わったら「途中で止めて…」を押してください。', true);
+  };
+
+  // 初期表示: デモ進行の例（デモ音を実際に解析した結果）
+  renderH();
+  runOffline(Core.synth(DEMO.concat(DEMO), DEMO_BPM, 22050), 22050).then(r => { if (!state.result || state.example) { state.result = r; render(); } });
+})();
+</script>
+
+</body></html>
