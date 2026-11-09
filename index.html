@@ -185,7 +185,10 @@ textarea.copy{position:absolute;left:-9999px}
     <label for="lyrics">歌詞（1 行ずつ貼り付け）
       <textarea id="lyrics" rows="6" placeholder="例:&#10;あさの ひかりが まどを てらす&#10;きょうも みんなで うたおう"></textarea>
     </label>
-    <p class="hint">歌詞はお手元の歌集・楽譜などから貼ってください（アプリが歌詞を取ってくることはありません）。</p>
+    <div class="row">
+      <a id="lyrSearch" class="btn" href="https://www.google.com/search?q=%E6%AD%8C%E8%A9%9E" target="_blank" rel="noopener">歌詞を探す ↗</a>
+      <span class="hint">曲名で検索した結果を別タブで開きます。お手元の歌集・楽譜からでも構いません。</span>
+    </div>
     <div class="row">
       <button id="btnSync" class="primary">♪ 動画に合わせて行を区切る</button>
       <button id="btnEven">均等に割り振る（おおまか）</button>
@@ -778,9 +781,14 @@ const Core = (() => {
     pendingId = id; if (!ytReady) return;
     $('playerWrap').hidden = false; playerOk = true;
     if (player && player.cueVideoById) { player.cueVideoById(id); return; }
-    player = new YT.Player('player', { videoId: id, playerVars: { playsinline: 1, rel: 0 }, events: { onStateChange: onYtState, onError: onYtError } });
+    player = new YT.Player('player', { videoId: id, playerVars: { playsinline: 1, rel: 0 }, events: { onStateChange: onYtState, onError: onYtError, onReady: () => onYtState({ data: -1 }) } });
   }
-  function onYtState(e) { if (e.data === 0 && cap && cap.auto) stopCap(); }
+  function onYtState(e) {
+    if (e.data === 0 && cap && cap.auto) stopCap();
+    try { const t = player.getVideoData && player.getVideoData().title; if (t && !$('ttl').value.trim()) { $('ttl').value = t; updLyrSearch(); } } catch (err) {}
+  }
+  function updLyrSearch() { const t = $('ttl').value.trim() || state.meta.title || ''; $('lyrSearch').href = 'https://www.google.com/search?q=' + encodeURIComponent((t && t !== 'デモの進行' ? t + ' ' : '') + '歌詞'); }
+  $('ttl').addEventListener('input', updLyrSearch);
   function onYtError(e) {
     playerOk = false;
     const msg = (e.data === 101 || e.data === 150) ? 'この動画は投稿者が埋め込み再生を許可していません。下の「ほかの方法」→「別タブの音を聴き取る」を使ってください。'
